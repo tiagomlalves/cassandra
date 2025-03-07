@@ -85,7 +85,7 @@ public final class AuthConfig
         IRoleManager roleManager = authInstantiate(conf.role_manager, CassandraRoleManager.class);
 
         if (authenticator instanceof PasswordAuthenticator && !(roleManager instanceof CassandraRoleManager))
-            throw new ConfigurationException(authenticator.getClass().getName() + " requires CassandraRoleManager", false);
+            throw new ConfigurationException(authenticator.getClass().getName() + " requires " + CassandraRoleManager.class.getName(), false);
 
         DatabaseDescriptor.setRoleManager(roleManager);
 

@@ -19,10 +19,10 @@ package org.apache.cassandra.config;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.google.common.base.Objects;
@@ -96,23 +96,18 @@ public class ParameterizedClass
         {
             Constructor<?>[] declaredConstructors = providerClass.getDeclaredConstructors();
 
-            Constructor mapConstructor = Arrays.stream(declaredConstructors)
-                                               .filter(c ->
-                                                       c.getParameterTypes().length == 1 && c.getParameterTypes()[0].equals(Map.class))
-                                               .findFirst()
-                                               .orElse(null);
+            Constructor<?> mapConstructor = filterConstructor(declaredConstructors, c -> c.getParameterTypes().length == 1 && c.getParameterTypes()[0].equals(Map.class));
+
             if (mapConstructor != null)
                 return (K) mapConstructor.newInstance(parameterizedClass.parameters);
 
             // Falls-back to no-arg constructor if no parameters are present
             if (parameterizedClass.parameters == null || parameterizedClass.parameters.isEmpty())
             {
-                Constructor emptyConstructor = Arrays.stream(declaredConstructors)
-                                                     .filter(c -> c.getParameterTypes().length == 0)
-                                                     .findFirst()
-                                                     .orElse(null);
-                if (emptyConstructor != null)
-                    return (K) emptyConstructor.newInstance();
+                Constructor<?> noArgsConstructor = filterConstructor(declaredConstructors, c -> c.getParameterTypes().length == 0);
+
+                if (noArgsConstructor != null)
+                    return (K) noArgsConstructor.newInstance();
             }
 
             throw new ConfigurationException("No valid constructor found for class " + parameterizedClass.class_name);
@@ -127,6 +122,15 @@ public class ParameterizedClass
             String error = "Failed to instantiate class " + parameterizedClass.class_name + ": " + cause.getMessage();
             throw new ConfigurationException(error, cause);
         }
+    }
+
+    static private Constructor<?> filterConstructor(Constructor<?>[] declaredConstructors, Predicate<Constructor<?>> filter)
+    {
+        for (Constructor<?> constructor : declaredConstructors)
+            if (filter.test(constructor))
+                return constructor;
+
+        return null;
     }
 
     @Override
